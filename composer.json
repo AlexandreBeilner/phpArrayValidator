@@ -1,0 +1,9 @@
+{
+    "name": "alexa/validator",
+    "autoload": {
+        "psr-4": {
+            "AValidator\\": "src/"
+        }
+    },
+    "require": {}
+}
