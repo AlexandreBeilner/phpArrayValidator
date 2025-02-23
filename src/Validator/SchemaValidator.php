@@ -12,44 +12,73 @@ class SchemaValidator
         'numberInterval' => 'numberIntervalValidate'
     ];
 
-    public function validate($data, $schema): void
+    private array $errors = [];
+
+    /**
+     * @param array $data
+     * @param array $schema
+     * @param array{validateExtraKeys?: boolean} $options
+     * @return void
+     * @throws \Exception
+     */
+    public function validate(array $data, array $schema, array $options = []): void
     {
+        $this->validateData($data, $schema, $options);
+
+        if (count($this->errors) > 0) {
+            throw new \Exception(join(PHP_EOL, $this->errors));
+        }
+    }
+
+    private function validateData(array $data, array $schema, array $options = []): void
+    {
+        if ($options['validateExtraKeys']) {
+            $this->verifyExtraKeys($data, $schema);
+        }
+
         foreach ($schema as $key => $item) {
-            $this->verifyIsRequired($data, $item, $key);
-            if (! $item['required'] && empty($data[$key])) {
-                continue;
-            }
+            if (! $this->verifyIsRequired($data, $item, $key)) continue;
 
-            $this->verifyMethodExists($item['type']);
+            if (! $item['required'] && empty($data[$key])) continue;
 
-            $this->verifyDataType($data[$key], $item, $key);
+            if (! $this->verifyDataType($data[$key], $item, $key)) continue;
 
             if (key_exists('values', $item)) {
-                $this->validate($data[$key], $item['values']);
+                $this->validateData($data[$key], $item['values'], $options);
             }
         }
     }
 
-    private function verifyIsRequired($data, $item, $key): void
+    private function verifyIsRequired($data, $item, $key): bool
     {
         if ((! key_exists($key, $data) || empty($data[$key])) && $item['required']) {
-            print_r("O valor de $key é obrigatório");exit;
+            $this->errors[] = "O valor de \"$key\" é obrigatório";
+            return false;
         }
+        return true;
     }
 
-    private function verifyMethodExists(string $type): void
-    {
-        if (empty($this->validators[$type])) {
-            print_r("O validador do tipo $type nao existe!");exit;
-        }
-    }
-
-    private function verifyDataType($value, $schemaType, $key): void
+    private function verifyDataType($value, $schemaType, $key): bool
     {
         $method = $this->validators[$schemaType['type']];
         if (! $this->$method($value, $schemaType['props'] ?? '')) {
-            print_r("O campo $key está no formato errado, verefique a documentacao");
-            exit;
+            $this->errors[] = "O campo \"$key\" está no formato errado, verefique a documentacao";
+            return false;
+        }
+
+        return true;
+    }
+
+    private function verifyExtraKeys($data, $schema): void
+    {
+        $dataKeys = array_keys($data);
+        $schemaKeys = array_keys($schema);
+
+        $allKeys = $dataKeys + $schemaKeys;
+
+        if (count($allKeys) > count($schemaKeys)) {
+            $invalidKeys = join(', ', array_diff($allKeys, $schemaKeys));
+            $this->errors[] = "A(s) chave(s) \"$invalidKeys\" nao devem estar presentes, verefique a documentacao.";
         }
     }
 

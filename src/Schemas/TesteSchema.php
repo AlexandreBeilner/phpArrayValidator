@@ -18,4 +18,15 @@ class TesteSchema extends AbstractSchema {
             ])
         ];
     }
+
+    public static function testeDois(): array
+    {
+        return [
+            'name' => self::string(true),
+            'age' => self::integer(true),
+            'lat' => self::numberInterval(true, -80, 80),
+            'lng' => self::numberInterval(true, -180, 180),
+            'email' => self::string(true)
+        ];
+    }
 }
